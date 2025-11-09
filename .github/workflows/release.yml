@@ -1,0 +1,48 @@
+name: Release Obsidian Plugin
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18.x"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update package version
+        run: npm version ${{ github.ref_name }} --no-git-tag-version --allow-same-version
+
+      - name: Bump plugin versions
+        run: node version-bump.mjs
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Commit version bump files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m "chore: Bump version to ${{ github.ref_name }}"
+          git push
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title="Release ${{ github.ref_name }}" \
+            --draft \
+            --generate-notes \
+            main.js manifest.json

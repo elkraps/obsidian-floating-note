@@ -1,0 +1,32 @@
+{
+  "name": "obsidian-floating-note",
+  "version": "1.0.0",
+  "description": "Floating note windows for Obsidian",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "version": "node version-bump.mjs && git add manifest.json versions.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elkraps/obsidian-floating-note.git"
+  },
+  "keywords": ["obsidian", "plugin"],
+  "author": "elkraps",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/elkraps/obsidian-floating-note/issues"
+  },
+  "homepage": "https://github.com/elkraps/obsidian-floating-note#readme",
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.3",
+    "@typescript-eslint/parser": "^8.46.3",
+    "esbuild": "^0.25.12",
+    "eslint": "^9.39.1",
+    "obsidian": "^1.10.2-1",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-floating-note",
+  "name": "Floating Note",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "Open notes in floating windows for easy note-taking while watching videos or reading.",
+  "author": "elkraps",
+  "authorUrl": "https://github.com/elkraps",
+  "isDesktopOnly": true
+}
