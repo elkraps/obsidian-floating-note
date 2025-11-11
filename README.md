@@ -1,8 +1,13 @@
 # 📝 Floating Note - Obsidian Plugin
+---
 
 Open your notes in always-on-top floating windows, perfect for taking notes while watching videos, reading, or working with multiple monitors.
 
+***
+
 ![Demo GIF](assets/demo.gif)
+
+***
 
 ## ✨ Features
 
@@ -10,6 +15,7 @@ Open your notes in always-on-top floating windows, perfect for taking notes whil
 - 🎯 **Quick Access**: Multiple ways to open floating notes
 - 💾 **Remember Positions**: Automatically saves window positions
 - 🎨 **Customizable**: Control size, position, opacity, and behavior
+***
 
 ## 🚀 Installation
 
@@ -18,6 +24,7 @@ Open your notes in always-on-top floating windows, perfect for taking notes whil
 2. Navigate to Community Plugins and disable Safe Mode
 3. Click Browse and search for "Floating Note"
 4. Install the plugin and enable it
+***
 
 ### Manual Installation
 1. Download the latest release from GitHub
@@ -25,6 +32,7 @@ Open your notes in always-on-top floating windows, perfect for taking notes whil
    `VaultFolder/.obsidian/plugins/obsidian-floating-note/`
 3. Reload Obsidian
 4. Enable the plugin in Settings → Community Plugins
+***
 
 ## 📖 Usage
 
@@ -41,7 +49,7 @@ Open your notes in always-on-top floating windows, perfect for taking notes whil
 
 **Method 3: Ribbon Icon**
 - Click the popup icon in the left sidebar to open the currently active note in a floating window.
-
+***
 ## ⚙️ Settings
 
 ### Window Size
@@ -66,7 +74,7 @@ Open your notes in always-on-top floating windows, perfect for taking notes whil
 ### Data Management
 - **Clean up saved positions**: Remove saved position and size data for notes that no longer exist in your vault. This is useful for maintenance if you frequently delete or rename notes.
 
-
+***
 ## 💡 Use Cases
 
 - **📺 Video Learning**: Take notes while watching tutorial videos
@@ -75,14 +83,14 @@ Open your notes in always-on-top floating windows, perfect for taking notes whil
 - **✍️ Writing**: Reference outlines or ideas while drafting
 - **🎓 Studying**: Keep study notes visible during practice
 - **📊 Presentations**: Quick access to speaker notes
-
+***
 ## 🔧 Development
 
 ### Prerequisites
 - Node.js (v16 or higher)
 - npm or yarn
 - Obsidian (v1.0.0 or higher)
-
+***
 ### Setup Development Environment
 ```bash
 # Clone the repository
@@ -98,7 +106,7 @@ npm run build
 # For development with auto-rebuild
 npm run dev
 ```
-
+***
 ### Testing Locally
 
 1. Create a test vault in Obsidian
@@ -108,10 +116,11 @@ npm run dev
 ```
 3. Copy built files:
 ```bash
-   cp main.js manifest.json /path/to/test-vault/.obsidian/plugins/floating-note/
+   cp main.js manifest.json /path/to/test-vault/.obsidian/plugins/obsidian-floating-note/
 ```
 4. Restart Obsidian and enable the plugin
 
+***
 ## 🐛 Troubleshooting
 
 ### Window doesn't stay on top
@@ -133,6 +142,7 @@ npm run dev
 - Close unused floating windows
 - Check for conflicting plugins
 
+***
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -143,25 +153,20 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+***
 ## 📝 Changelog
 
-### v1.0.0
-- Initial release
+### 1.0.0 - Initial release
 - Always-on-top floating windows
 - Customizable window size and position
 - Position memory per note
 - Window opacity
-
+***
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details
 
-## 🙏 Acknowledgments
-
-- Thanks to the Obsidian team for the amazing API
-- Inspired by picture-in-picture functionality in modern browsers
-- Community feedback and feature requests
-
+***
 ## 💬 Support
 
 - 🐛 [Report a bug](https://github.com/elkraps/obsidian-floating-note/issues)
