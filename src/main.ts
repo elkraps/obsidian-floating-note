@@ -1,218 +1,192 @@
-import {
-    Plugin,
-    TFile,
-    WorkspaceLeaf,
-    Menu
-} from "obsidian";
-import { FloatingNoteSettings, DEFAULT_SETTINGS } from "./types";
-import { FloatingNoteSettingTab } from "./settings";
+import { FileView, Notice, Plugin, TFile, WorkspaceLeaf } from 'obsidian';
+import { FloatingNoteSettings, POSITIONS, Position, parseSettings } from './types';
+import { FloatingNoteSettingTab } from './settings';
+import { fitToWorkArea, positionInWorkArea } from './geometry';
+import { getWindowAdapter, readWindowBounds } from './window-adapter';
 
-type Position = 'center' | 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+interface FloatingWindow {
+    win: Window;
+    snapshot: () => void;
+    dispose: () => void;
+}
 
 export default class FloatingNotePlugin extends Plugin {
-    settings: FloatingNoteSettings;
-    private floatingLeaves: Set<WorkspaceLeaf> = new Set();
+    settings: FloatingNoteSettings = parseSettings(null);
+    private floatingLeaves = new Map<WorkspaceLeaf, FloatingWindow>();
+    private saveQueue: Promise<void> = Promise.resolve();
+    private unloading = false;
 
     async onload() {
         await this.loadSettings();
-
-        const positions: Position[] = ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
-        positions.forEach(position => {
+        for (const position of POSITIONS) {
             this.addCommand({
                 id: `open-floating-note-${position}`,
                 name: `Open in floating window (${position})`,
-                checkCallback: (checking) => {
+                checkCallback: checking => {
                     const file = this.app.workspace.getActiveFile();
-                    if (file) {
-                        if (!checking) {
-                            this.openFloatingNote(file, position);
-                        }
-                        return true;
-                    }
-                    return false;
+                    if (!(file instanceof TFile) || file.extension !== 'md') return false;
+                    if (!checking) void this.openFloatingNote(file, position);
+                    return true;
                 },
             });
-        });
-
-        this.registerEvent(
-            this.app.workspace.on("file-menu", (menu: Menu, file: TFile) => {
-                if (file instanceof TFile && file.extension === "md") {
-                    menu.addItem((item) => {
-                        item
-                            .setTitle("Open in floating window")
-                            .setIcon("popup-open")
-                            .onClick(() => {
-                                this.openFloatingNote(file, this.settings.defaultPosition);
-                            });
-                    });
-                }
-            })
-        );
-
-        this.addRibbonIcon("popup-open", "Open floating note", async () => {
-            const file = this.app.workspace.getActiveFile();
-            if (file) {
-                await this.openFloatingNote(file, this.settings.defaultPosition);
+        }
+        this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
+            if (file instanceof TFile && file.extension === 'md') {
+                menu.addItem(item => item.setTitle('Open in floating window').setIcon('popup-open')
+                    .onClick(() => { void this.openFloatingNote(file); }));
             }
+        }));
+        this.registerEvent(this.app.workspace.on('window-close', (_container, win) => {
+            for (const [leaf, floating] of this.floatingLeaves) {
+                if (floating.win === win) {
+                    floating.dispose();
+                    this.floatingLeaves.delete(leaf);
+                }
+            }
+        }));
+        this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
+            const bounds = this.settings.notePositions[oldPath];
+            if (bounds) {
+                this.settings.notePositions[file.path] = bounds;
+                delete this.settings.notePositions[oldPath];
+                this.persistSettings();
+            }
+        }));
+        this.registerEvent(this.app.vault.on('delete', file => {
+            if (Object.prototype.hasOwnProperty.call(this.settings.notePositions, file.path)) {
+                delete this.settings.notePositions[file.path];
+                this.persistSettings();
+            }
+        }));
+        this.addRibbonIcon('popup-open', 'Open floating note', () => {
+            const file = this.app.workspace.getActiveFile();
+            if (file instanceof TFile && file.extension === 'md') void this.openFloatingNote(file);
         });
-
         this.addSettingTab(new FloatingNoteSettingTab(this.app, this));
-        console.log("Floating Note plugin loaded");
-    }
-
-    private calculateWindowPosition(screen: any, position: Position, width: number, height: number): { x?: number, y?: number } {
-        if (!screen) {
-            console.error("Electron screen module is not available.");
-            return { x: undefined, y: undefined };
-        }
-
-        const primaryDisplay = screen.getPrimaryDisplay();
-        const { width: screenWidth, height: screenHeight } = primaryDisplay.workArea;
-
-        switch (position) {
-            case 'center':
-                return {
-                    x: Math.round((screenWidth - width) / 2),
-                    y: Math.round((screenHeight - height) / 2)
-                };
-            case 'top-left':
-                return { x: 0, y: 0 };
-            case 'top-right':
-                return { x: screenWidth - width, y: 0 };
-            case 'bottom-left':
-                return { x: 0, y: screenHeight - height };
-            case 'bottom-right':
-                return { x: screenWidth - width, y: screenHeight - height };
-            default:
-                return { x: undefined, y: undefined };
-        }
     }
 
     async openFloatingNote(file: TFile, position?: Position) {
-        if (!file) {
-            return;
-        }
-
+        let leaf: WorkspaceLeaf | undefined;
         try {
-            const popoutLeaf = this.app.workspace.openPopoutLeaf();
-            this.floatingLeaves.add(popoutLeaf);
-
-            popoutLeaf.on('close', () => {
-                this.floatingLeaves.delete(popoutLeaf);
+            const sourceWindow = this.app.workspace.activeLeaf?.getContainer().win ?? window;
+            const source = getWindowAdapter(sourceWindow);
+            const sourceBounds = readWindowBounds(source.native);
+            const saved = this.settings.rememberPosition ? this.settings.notePositions[file.path] : undefined;
+            // Explicit position commands override saved coordinates, but retain saved size.
+            const area = source.screen.getDisplayMatching(saved && !position ? saved : sourceBounds).workArea;
+            const width = saved?.width ?? this.settings.defaultWidth;
+            const height = saved?.height ?? this.settings.defaultHeight;
+            const bounds = saved && !position ? fitToWorkArea(saved, area)
+                : positionInWorkArea(area, position ?? this.settings.defaultPosition, width, height);
+            // Supply geometry before the native window is shown or the file is loaded.
+            leaf = this.app.workspace.openPopoutLeaf({
+                x: bounds.x,
+                y: bounds.y,
+                size: { width: bounds.width, height: bounds.height },
             });
-
-            await popoutLeaf.openFile(file);
-
-            const popoutWindow = (popoutLeaf.view.containerEl as any)?.win;
-            const electronWindow = popoutWindow?.electronWindow;
-
-            if (popoutWindow && electronWindow) {
-                // Save position on close
-                popoutWindow.addEventListener('beforeunload', () => {
-                    if (this.settings.rememberPosition) {
-                        const bounds = electronWindow.getBounds();
-                        this.settings.notePositions[file.path] = {
-                            x: bounds.x,
-                            y: bounds.y,
-                            width: bounds.width,
-                            height: bounds.height,
-                        };
-                        this.saveSettings();
-                    }
-                });
-
-                // Always on top
-                if (this.settings.alwaysOnTop) {
-                    electronWindow.setAlwaysOnTop(true, "floating");
-                }
-
-                // Set opacity
-                electronWindow.setOpacity(this.settings.defaultOpacity);
-
-                const savedGeometry = this.settings.notePositions[file.path];
-                let finalWidth = this.settings.defaultWidth;
-                let finalHeight = this.settings.defaultHeight;
-                let finalX: number | undefined;
-                let finalY: number | undefined;
-
-                if (this.settings.rememberPosition && savedGeometry) {
-                    finalWidth = savedGeometry.width;
-                    finalHeight = savedGeometry.height;
-                    finalX = savedGeometry.x;
-                    finalY = savedGeometry.y;
-                } else {
-                    const screen = popoutWindow.require('@electron/remote').screen;
-                    const pos = this.calculateWindowPosition(screen, position || this.settings.defaultPosition, finalWidth, finalHeight);
-                    finalX = pos.x;
-                    finalY = pos.y;
-                }
-
-                const bounds = {
-                    width: finalWidth,
-                    height: finalHeight,
-                    x: finalX,
-                    y: finalY,
-                };
-
-                const cleanBounds: { width: number, height: number, x?: number, y?: number } = {
-                    width: Math.round(bounds.width),
-                    height: Math.round(bounds.height)
-                };
-
-                if (bounds.x !== undefined) {
-                    cleanBounds.x = Math.round(bounds.x);
-                }
-                if (bounds.y !== undefined) {
-                    cleanBounds.y = Math.round(bounds.y);
-                }
-
-                electronWindow.setBounds(cleanBounds);
+            const win = leaf.getContainer().win;
+            const { native } = getWindowAdapter(win);
+            // Obsidian expands suggested sizes below 600 pixels. Correct the native
+            // bounds synchronously, before it can show the window during file loading.
+            native.setBounds(bounds);
+            native.setAlwaysOnTop(this.settings.alwaysOnTop, 'floating');
+            native.setOpacity(this.settings.defaultOpacity);
+            await leaf.openFile(file);
+            if (this.unloading) {
+                leaf.detach();
+                return;
             }
 
+            const openedLeaf = leaf;
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const snapshot = () => {
+                if (!this.settings.rememberPosition || native.isDestroyed()) return;
+                const currentFile = openedLeaf.view instanceof FileView ? openedLeaf.view.file : null;
+                if (!currentFile || currentFile.extension !== 'md') return;
+                this.settings.notePositions[currentFile.path] = readWindowBounds(native);
+                this.persistSettings();
+            };
+            const changed = () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => {
+                    try { snapshot(); }
+                    catch (error) { this.reportError('Could not save floating window position.', error); }
+                }, 250);
+            };
+            const beforeUnload = () => {
+                clearTimeout(timer);
+                try { snapshot(); }
+                catch (error) { this.reportError('Could not save floating window position.', error); }
+            };
+            native.on('move', changed);
+            native.on('resize', changed);
+            win.addEventListener('beforeunload', beforeUnload);
+            this.floatingLeaves.set(leaf, {
+                win, snapshot,
+                dispose: () => {
+                    clearTimeout(timer);
+                    native.removeListener('move', changed);
+                    native.removeListener('resize', changed);
+                    win.removeEventListener('beforeunload', beforeUnload);
+                },
+            });
+            snapshot();
         } catch (error) {
-            console.error("Error opening floating window:", error);
+            if (leaf) {
+                this.floatingLeaves.get(leaf)?.dispose();
+                this.floatingLeaves.delete(leaf);
+                leaf.detach();
+            }
+            this.reportError('Could not open floating note. See the developer console for details.', error);
         }
     }
 
     onunload() {
+        this.unloading = true;
         this.closeAllFloatingWindows();
-        console.log("Floating Note plugin unloaded");
     }
 
     closeAllFloatingWindows() {
-        this.floatingLeaves.forEach((leaf) => {
+        for (const [leaf, floating] of this.floatingLeaves) {
+            try { floating.snapshot(); }
+            catch (error) { this.reportError('Could not save floating window position.', error); }
+            floating.dispose();
             leaf.detach();
-        });
+        }
         this.floatingLeaves.clear();
     }
 
     async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        this.settings = parseSettings(await this.loadData());
     }
 
-    async saveSettings() {
-        await this.saveData(this.settings);
+    saveSettings(): Promise<void> {
+        const snapshot = JSON.parse(JSON.stringify(this.settings)) as FloatingNoteSettings;
+        const write = this.saveQueue.then(() => this.saveData(snapshot));
+        // A failed write must not prevent later writes; the caller still receives the rejection.
+        this.saveQueue = write.catch(() => {});
+        return write;
     }
 
-    public cleanupStalePositions(): number {
+    private persistSettings() {
+        void this.saveSettings().catch(error => this.reportError('Could not save Floating Note settings.', error));
+    }
+
+    private reportError(message: string, error: unknown) {
+        console.error(message, error);
+        new Notice(message);
+    }
+
+    async cleanupStalePositions(): Promise<number> {
         const validPaths = new Set(this.app.vault.getMarkdownFiles().map(file => file.path));
-        let staleCount = 0;
-
-        if (this.settings.notePositions) {
-            for (const path in this.settings.notePositions) {
-                if (!validPaths.has(path)) {
-                    delete this.settings.notePositions[path];
-                    staleCount++;
-                }
+        let count = 0;
+        for (const path of Object.keys(this.settings.notePositions)) {
+            if (!validPaths.has(path)) {
+                delete this.settings.notePositions[path];
+                count++;
             }
         }
-
-        // Also remove the obsolete windowBounds property if it exists
-        if ((this.settings as any).windowBounds) {
-            delete (this.settings as any).windowBounds;
-        }
-
-        this.saveSettings();
-        return staleCount;
+        await this.saveSettings();
+        return count;
     }
 }

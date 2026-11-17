@@ -1,168 +1,63 @@
-# 📝 Floating Note - Obsidian Plugin
+# Floating Note for Obsidian
 
-Open your notes in always-on-top floating windows, perfect for taking notes while watching videos, reading, or working with multiple monitors.
+Open Markdown notes in native floating windows with optional always-on-top behavior, opacity, and saved size and position.
 
+![Demo](assets/demo.gif)
 
-![Demo GIF](assets/demo.gif)
+## Availability
 
-## ✨ Features
+Floating Note is **not available in the Obsidian Community Plugins catalog**. The submission pull request remained pending for roughly six months and was closed. There is currently no ready-to-download release; installation requires cloning this repository and building the plugin locally.
 
-- 📌 **Always on Top**: Keep notes visible above all other windows
-- 🎯 **Quick Access**: Multiple ways to open floating notes
-- 💾 **Remember Positions**: Automatically saves window positions
-- 🎨 **Customizable**: Control size, position, opacity, and behavior
+## Build and install
 
-## 🚀 Installation
+Requirements: desktop Obsidian, Node.js 22 or later, and npm. Mobile is not supported. Version 1.0.1 was smoke-tested on macOS with Obsidian 1.13.7; the declared minimum Obsidian version has not been retested.
 
-### From Obsidian Community Plugins (Recommended)
-1. Open Settings in Obsidian
-2. Navigate to Community Plugins and disable Safe Mode
-3. Click Browse and search for "Floating Note"
-4. Install the plugin and enable it
-
-### Manual Installation
-1. Download the latest release from GitHub
-2. Extract `main.js`, `manifest.json` to your vault:
-   `VaultFolder/.obsidian/plugins/obsidian-floating-note/`
-3. Reload Obsidian
-4. Enable the plugin in Settings → Community Plugins
-
-## 📖 Usage
-
-### Opening Floating Notes
-
-**Method 1: Command Palette**
-1. Press `Ctrl/Cmd + P` to open the command palette.
-2. Search for "Open in floating window" and choose a position (e.g., `center`, `top-right`).
-3. Press Enter.
-
-**Method 2: Right-Click Menu**
-1. Right-click on any markdown file in the file explorer.
-2. Select "Open in floating window".
-
-**Method 3: Ribbon Icon**
-- Click the popup icon in the left sidebar to open the currently active note in a floating window.
-
-## ⚙️ Settings
-
-### Window Size
-- **Default Width**: Set the default width for new floating windows (default: 400px).
-- **Default Height**: Set the default height for new floating windows (default: 600px).
-
-### Window Position
-- **Default Position**: Choose where new windows appear by default:
-    - Center
-    - Top Right
-    - Top Left
-    - Bottom Right
-    - Bottom Left
-- **Remember Position**: If enabled, the plugin saves the size and position for each note individually.
-
-### Window Appearance
-- **Window Opacity**: Set the default transparency for floating windows (from 0.3 to 1.0).
-
-### Window Behavior
-- **Always on Top**: Keep floating windows above all other applications.
-
-### Data Management
-- **Clean up saved positions**: Remove saved position and size data for notes that no longer exist in your vault. This is useful for maintenance if you frequently delete or rename notes.
-
-
-## 💡 Use Cases
-
-- **📺 Video Learning**: Take notes while watching tutorial videos
-- **📚 Research**: Keep reference notes visible while writing
-- **👨‍💻 Coding**: Keep documentation or snippets handy
-- **✍️ Writing**: Reference outlines or ideas while drafting
-- **🎓 Studying**: Keep study notes visible during practice
-- **📊 Presentations**: Quick access to speaker notes
-
-## 🔧 Development
-
-### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-- Obsidian (v1.0.0 or higher)
-
-### Setup Development Environment
-```bash
-# Clone the repository
+```sh
 git clone https://github.com/elkraps/obsidian-floating-note.git
 cd obsidian-floating-note
-
-# Install dependencies
-npm install
-
-# Build the plugin
+npm ci
 npm run build
-
-# For development with auto-rebuild
-npm run dev
 ```
 
-### Testing Locally
+The build runs type checking, lint, and automated tests, then produces `main.js`.
 
-1. Create a test vault in Obsidian
-2. Create the plugin directory:
-```bash
-   mkdir -p /path/to/test-vault/.obsidian/plugins/obisidian-floating-note
+1. Create `<vault>/.obsidian/plugins/floating-note/`.
+2. Copy `main.js` and `manifest.json` into that directory.
+3. Restart Obsidian and enable **Floating Note** in Settings → Community plugins. Community plugins must be allowed in that vault.
+
+To update, pull the latest source, run `npm ci` and `npm run build`, copy both files again, and reload the plugin.
+
+## Usage
+
+- **Command palette:** search for “Open in floating window” and choose a position. An explicit position overrides the note's saved coordinates, while retaining its saved size.
+- **File menu:** right-click a Markdown file and choose “Open in floating window”.
+- **Ribbon:** click “Open floating note” to open the active Markdown note.
+
+The file menu and ribbon restore saved geometry when “Remember position” is enabled. New windows otherwise use the default position on the source window's monitor. Saved geometry is fitted to an available display if the original monitor is disconnected.
+
+## Settings
+
+- **Default width / height:** 400 × 600 pixels; each must be greater than 200. Windows are fitted to the available work area.
+- **Default position:** center or any corner; defaults to top right.
+- **Remember position:** save size and position per note when opening, moving, resizing, and closing windows. Enabled by default.
+- **Window opacity:** 0.3–1.0; defaults to 1.0.
+- **Always on top:** enabled by default.
+- **Clean up saved positions:** remove entries for notes that no longer exist. File renames and deletions are also handled automatically.
+
+Appearance settings apply to newly opened windows. Disabling the plugin closes the windows it opened.
+
+## Development
+
+```sh
+npm run check   # Type checking, lint, and automated tests
+npm run dev     # One development build with inline source maps
+npm run build   # Checks and production build
 ```
-3. Copy built files:
-```bash
-   cp main.js manifest.json /path/to/test-vault/.obsidian/plugins/obsidian-floating-note/
-```
-4. Restart Obsidian and enable the plugin
 
-## 🐛 Troubleshooting
+After rebuilding, copy the output to a test vault and reload the plugin. The development command currently builds once; it does not watch files.
 
-### Window doesn't stay on top
-- Make sure "Always on top" is enabled in settings
-- Try restarting Obsidian
-- Check if your OS has window management restrictions
+Window controls use Obsidian's runtime Electron integration, which is outside its public API and may change between application versions. If opening fails, the plugin shows a notice and logs details in the developer console (`Ctrl/Cmd + Shift + I`). Always-on-top and opacity behavior can vary by operating system and window manager.
 
-### Window position not saving
-- Ensure "Remember position" is enabled
-- Check file permissions in `.obsidian/plugins/obsidian-floating-note/data.json`
+## License and feedback
 
-### Plugin not loading
-- Check Obsidian console for errors (Ctrl/Cmd + Shift + I)
-- Ensure you're using Obsidian v1.0.0 or higher
-- Verify all plugin files are present
-
-### Performance issues
-- Limit number of open floating windows
-- Close unused floating windows
-- Check for conflicting plugins
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 Changelog
-
-### 1.0.0 - Initial release
-- Always-on-top floating windows
-- Customizable window size and position
-- Position memory per note
-- Window opacity
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details
-
-## 💬 Support
-
-- 🐛 [Report a bug](https://github.com/elkraps/obsidian-floating-note/issues)
-- 💡 [Request a feature](https://github.com/elkraps/obsidian-floating-note/issues)
-- 💬 [Discussions](https://github.com/elkraps/obsidian-floating-note/discussions)
-- ⭐ Star this repo if you find it useful!
-
----
-
-Made with ❤️ for the Obsidian community
+[MIT](LICENSE). Report problems or suggest improvements in [GitHub Issues](https://github.com/elkraps/obsidian-floating-note/issues).

@@ -1,5 +1,6 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
-import FloatingNotePlugin from "./main";
+import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import type FloatingNotePlugin from "./main";
+import { isDimension, isPosition } from "./types";
 
 export class FloatingNoteSettingTab extends PluginSettingTab {
     plugin: FloatingNotePlugin;
@@ -24,8 +25,8 @@ export class FloatingNoteSettingTab extends PluginSettingTab {
                 .setValue(String(this.plugin.settings.defaultWidth))
                 .onChange(async (value) => {
                     const num = Number(value);
-                    if (!isNaN(num) && num > 200) {
-                        this.plugin.settings.defaultWidth = num;
+                    if (isDimension(num)) {
+                        this.plugin.settings.defaultWidth = Math.round(num);
                         await this.plugin.saveSettings();
                     }
                 }));
@@ -38,8 +39,8 @@ export class FloatingNoteSettingTab extends PluginSettingTab {
                 .setValue(String(this.plugin.settings.defaultHeight))
                 .onChange(async (value) => {
                     const num = Number(value);
-                    if (!isNaN(num) && num > 200) {
-                        this.plugin.settings.defaultHeight = num;
+                    if (isDimension(num)) {
+                        this.plugin.settings.defaultHeight = Math.round(num);
                         await this.plugin.saveSettings();
                     }
                 }));
@@ -57,7 +58,8 @@ export class FloatingNoteSettingTab extends PluginSettingTab {
                 .addOption('bottom-left', 'Bottom Left')
                 .setValue(this.plugin.settings.defaultPosition)
                 .onChange(async (value) => {
-                    this.plugin.settings.defaultPosition = value as any;
+                    if (!isPosition(value)) return;
+                    this.plugin.settings.defaultPosition = value;
                     await this.plugin.saveSettings();
                 }));
 
@@ -108,7 +110,13 @@ export class FloatingNoteSettingTab extends PluginSettingTab {
             .addButton(button => button
                 .setButtonText("Clean up")
                 .onClick(async () => {
-                    const count = this.plugin.cleanupStalePositions();
+                    try {
+                        const count = await this.plugin.cleanupStalePositions();
+                        new Notice(`Removed ${count} saved window positions.`);
+                    } catch (error) {
+                        console.error("Could not clean up saved positions.", error);
+                        new Notice("Could not clean up saved positions. See the developer console for details.");
+                    }
                 }));
     }
 }

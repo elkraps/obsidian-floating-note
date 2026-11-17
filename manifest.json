@@ -1,7 +1,7 @@
 {
   "id": "floating-note",
   "name": "Floating Note",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "1.0.0",
   "description": "Open your notes in always-on-top floating windows, perfect for taking notes while watching videos, reading, or working with multiple monitors.",
   "author": "elkraps",
